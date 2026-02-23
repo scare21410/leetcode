@@ -35,37 +35,114 @@ def json_to_java(value):
     raise ValueError(f"Unsupported type: {type(value)}")
 
 
+def has_listnode(testcases):
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    return 'ListNode' in param_types or return_type == 'ListNode'
+
+
 def generate_test(testcases):
     func = testcases['function']
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    uses_listnode = has_listnode(testcases)
+
     lines = [
         'import java.util.Arrays;',
+        'import java.util.ArrayList;',
         '',
+    ]
+
+    if uses_listnode:
+        lines.extend([
+            'class ListNode {',
+            '    int val;',
+            '    ListNode next;',
+            '    ListNode() {}',
+            '    ListNode(int val) { this.val = val; }',
+            '    ListNode(int val, ListNode next) { this.val = val; this.next = next; }',
+            '}',
+            '',
+        ])
+
+    lines.extend([
         'public class TestSolution {',
+    ])
+
+    if uses_listnode:
+        lines.extend([
+            '    static ListNode arrayToListNode(int[] arr) {',
+            '        ListNode dummy = new ListNode();',
+            '        ListNode cur = dummy;',
+            '        for (int v : arr) {',
+            '            cur.next = new ListNode(v);',
+            '            cur = cur.next;',
+            '        }',
+            '        return dummy.next;',
+            '    }',
+            '',
+            '    static int[] listNodeToArray(ListNode node) {',
+            '        ArrayList<Integer> list = new ArrayList<>();',
+            '        while (node != null) {',
+            '            list.add(node.val);',
+            '            node = node.next;',
+            '        }',
+            '        return list.stream().mapToInt(Integer::intValue).toArray();',
+            '    }',
+            '',
+        ])
+
+    lines.extend([
         '    public static void main(String[] args) {',
         '        Solution sol = new Solution();',
         '        int passed = 0, failed = 0;',
-    ]
+    ])
 
     for i, case in enumerate(testcases['cases']):
-        args = ', '.join(json_to_java(a) for a in case['input'])
-        expected = json_to_java(case['output'])
-        is_array = isinstance(case['output'], list)
-
         lines.append('        {')
-        lines.append(f'            var result = sol.{func}({args});')
-        lines.append(f'            var expected = {expected};')
-        if is_array:
+
+        # Build arguments
+        arg_parts = []
+        for j, arg in enumerate(case['input']):
+            ptype = param_types[j] if j < len(param_types) else ''
+            if ptype == 'ListNode':
+                lines.append(f'            int[] arr{j} = {json_to_java(arg)};')
+                lines.append(f'            ListNode arg{j} = arrayToListNode(arr{j});')
+                arg_parts.append(f'arg{j}')
+            else:
+                arg_parts.append(json_to_java(arg))
+
+        call_args = ', '.join(arg_parts)
+
+        if return_type == 'ListNode':
+            lines.append(f'            ListNode resultNode = sol.{func}({call_args});')
+            lines.append('            int[] result = listNodeToArray(resultNode);')
+            expected = json_to_java(case['output'])
+            lines.append(f'            int[] expected = {expected};')
             lines.append('            if (Arrays.equals(result, expected)) {')
-        else:
-            lines.append('            if (result == expected) {')
-        lines.append('                passed++;')
-        lines.append('            } else {')
-        lines.append('                failed++;')
-        if is_array:
+            lines.append('                passed++;')
+            lines.append('            } else {')
+            lines.append('                failed++;')
             lines.append(f'                System.out.println("FAIL case {i}: got " + Arrays.toString(result) + ", want " + Arrays.toString(expected));')
+            lines.append('            }')
         else:
-            lines.append(f'                System.out.println("FAIL case {i}: got " + result + ", want " + expected);')
-        lines.append('            }')
+            expected = json_to_java(case['output'])
+            is_array = isinstance(case['output'], list)
+            lines.append(f'            var result = sol.{func}({call_args});')
+            lines.append(f'            var expected = {expected};')
+            if is_array:
+                lines.append('            if (Arrays.equals(result, expected)) {')
+            else:
+                lines.append('            if (result == expected) {')
+            lines.append('                passed++;')
+            lines.append('            } else {')
+            lines.append('                failed++;')
+            if is_array:
+                lines.append(f'                System.out.println("FAIL case {i}: got " + Arrays.toString(result) + ", want " + Arrays.toString(expected));')
+            else:
+                lines.append(f'                System.out.println("FAIL case {i}: got " + result + ", want " + expected);')
+            lines.append('            }')
+
         lines.append('        }')
 
     lines.extend([
@@ -101,6 +178,10 @@ def main():
         with open(test_file, 'w') as f:
             f.write(test_content)
 
+        cleanup_files = ['TestSolution.java', 'Solution.class', 'TestSolution.class']
+        if has_listnode(testcases):
+            cleanup_files.append('ListNode.class')
+
         try:
             compile_result = subprocess.run(
                 ['javac', 'Solution.java', 'TestSolution.java'],
@@ -119,7 +200,7 @@ def main():
             if run_result.returncode != 0:
                 all_passed = False
         finally:
-            for name in ['TestSolution.java', 'Solution.class', 'TestSolution.class']:
+            for name in cleanup_files:
                 p = os.path.join(problem_dir, name)
                 if os.path.exists(p):
                     os.unlink(p)

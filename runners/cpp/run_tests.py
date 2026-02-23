@@ -45,15 +45,60 @@ def json_to_cpp(value):
     raise ValueError(f"Unsupported type: {type(value)}")
 
 
+def has_listnode(testcases):
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    return 'ListNode' in param_types or return_type == 'ListNode'
+
+
 def generate_test(testcases, solution_filename):
     func = testcases['function']
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    uses_listnode = has_listnode(testcases)
+
     lines = [
         f'#include "{solution_filename}"',
         '#include <iostream>',
         '#include <cassert>',
+        '#include <vector>',
         '',
         'using namespace std;',
         '',
+    ]
+
+    if uses_listnode:
+        lines.extend([
+            'ListNode* arrayToListNode(const vector<int>& arr) {',
+            '    ListNode dummy(0);',
+            '    ListNode* cur = &dummy;',
+            '    for (int v : arr) {',
+            '        cur->next = new ListNode(v);',
+            '        cur = cur->next;',
+            '    }',
+            '    return dummy.next;',
+            '}',
+            '',
+            'vector<int> listNodeToArray(ListNode* node) {',
+            '    vector<int> arr;',
+            '    while (node) {',
+            '        arr.push_back(node->val);',
+            '        node = node->next;',
+            '    }',
+            '    return arr;',
+            '}',
+            '',
+            'void freeList(ListNode* node) {',
+            '    while (node) {',
+            '        ListNode* tmp = node;',
+            '        node = node->next;',
+            '        delete tmp;',
+            '    }',
+            '}',
+            '',
+        ])
+
+    lines.extend([
         'template<typename T>',
         'string vec_to_str(const vector<T>& v) {',
         '    string s = "[";',
@@ -67,29 +112,51 @@ def generate_test(testcases, solution_filename):
         'int main() {',
         '    Solution sol;',
         '    int passed = 0, failed = 0;',
-    ]
+    ])
 
     for i, case in enumerate(testcases['cases']):
         lines.append(f'    {{ // case {i}')
         arg_names = []
         for j, arg in enumerate(case['input']):
-            t = cpp_type_of(arg)
-            lit = json_to_cpp(arg)
-            lines.append(f'        {t} arg{j} = {lit};')
+            ptype = param_types[j] if j < len(param_types) else ''
+            if ptype == 'ListNode':
+                t = cpp_type_of(arg)
+                lit = json_to_cpp(arg)
+                lines.append(f'        {t} arr{j} = {lit};')
+                lines.append(f'        ListNode* arg{j} = arrayToListNode(arr{j});')
+            else:
+                t = cpp_type_of(arg)
+                lit = json_to_cpp(arg)
+                lines.append(f'        {t} arg{j} = {lit};')
             arg_names.append(f'arg{j}')
-        expected_t = cpp_type_of(case['output'])
-        expected_lit = json_to_cpp(case['output'])
-        lines.append(f'        {expected_t} expected = {expected_lit};')
-        lines.append(f'        auto result = sol.{func}({", ".join(arg_names)});')
-        lines.append('        if (result == expected) {')
-        lines.append('            passed++;')
-        lines.append('        } else {')
-        lines.append('            failed++;')
-        if isinstance(case['output'], list):
+
+        if return_type == 'ListNode':
+            lines.append(f'        ListNode* resultNode = sol.{func}({", ".join(arg_names)});')
+            lines.append(f'        vector<int> result = listNodeToArray(resultNode);')
+            expected_t = cpp_type_of(case['output'])
+            expected_lit = json_to_cpp(case['output'])
+            lines.append(f'        {expected_t} expected = {expected_lit};')
+            lines.append('        if (result == expected) {')
+            lines.append('            passed++;')
+            lines.append('        } else {')
+            lines.append('            failed++;')
             lines.append(f'            cout << "FAIL case {i}: got " << vec_to_str(result) << ", want " << vec_to_str(expected) << endl;')
+            lines.append('        }')
+            lines.append('        freeList(resultNode);')
         else:
-            lines.append(f'            cout << "FAIL case {i}: got " << result << ", want " << expected << endl;')
-        lines.append('        }')
+            expected_t = cpp_type_of(case['output'])
+            expected_lit = json_to_cpp(case['output'])
+            lines.append(f'        {expected_t} expected = {expected_lit};')
+            lines.append(f'        auto result = sol.{func}({", ".join(arg_names)});')
+            lines.append('        if (result == expected) {')
+            lines.append('            passed++;')
+            lines.append('        } else {')
+            lines.append('            failed++;')
+            if isinstance(case['output'], list):
+                lines.append(f'            cout << "FAIL case {i}: got " << vec_to_str(result) << ", want " << vec_to_str(expected) << endl;')
+            else:
+                lines.append(f'            cout << "FAIL case {i}: got " << result << ", want " << expected << endl;')
+            lines.append('        }')
         lines.append('    }')
 
     lines.extend([

@@ -51,40 +51,120 @@ def json_to_csharp(value):
     raise ValueError(f"Unsupported type: {type(value)}")
 
 
+def has_listnode(testcases):
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    return 'ListNode' in param_types or return_type == 'ListNode'
+
+
 def generate_test(testcases):
     func = camel_to_pascal(testcases['function'])
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    uses_listnode = has_listnode(testcases)
+
     lines = [
         'using System;',
         'using System.Linq;',
+        'using System.Collections.Generic;',
         '',
+    ]
+
+    if uses_listnode:
+        lines.extend([
+            'public class ListNode {',
+            '    public int val;',
+            '    public ListNode next;',
+            '    public ListNode(int val = 0, ListNode next = null) {',
+            '        this.val = val;',
+            '        this.next = next;',
+            '    }',
+            '}',
+            '',
+        ])
+
+    lines.extend([
         'public class TestSolution {',
+    ])
+
+    if uses_listnode:
+        lines.extend([
+            '    static ListNode ArrayToListNode(int[] arr) {',
+            '        ListNode dummy = new ListNode();',
+            '        ListNode cur = dummy;',
+            '        foreach (int v in arr) {',
+            '            cur.next = new ListNode(v);',
+            '            cur = cur.next;',
+            '        }',
+            '        return dummy.next;',
+            '    }',
+            '',
+            '    static int[] ListNodeToArray(ListNode node) {',
+            '        var list = new List<int>();',
+            '        while (node != null) {',
+            '            list.Add(node.val);',
+            '            node = node.next;',
+            '        }',
+            '        return list.ToArray();',
+            '    }',
+            '',
+        ])
+
+    lines.extend([
         '    public static void Main() {',
         '        var sol = new Solution();',
         '        int passed = 0, failed = 0;',
-    ]
+    ])
 
     for i, case in enumerate(testcases['cases']):
-        args = ', '.join(json_to_csharp(a) for a in case['input'])
-        expected = json_to_csharp(case['output'])
-        is_array = isinstance(case['output'], list)
-
         lines.append('        {')
-        lines.append(f'            var result = sol.{func}({args});')
-        lines.append(f'            var expected = {expected};')
-        if is_array:
+
+        # Build arguments
+        arg_parts = []
+        for j, arg in enumerate(case['input']):
+            ptype = param_types[j] if j < len(param_types) else ''
+            if ptype == 'ListNode':
+                lines.append(f'            int[] arr{j} = {json_to_csharp(arg)};')
+                lines.append(f'            ListNode arg{j} = ArrayToListNode(arr{j});')
+                arg_parts.append(f'arg{j}')
+            else:
+                arg_parts.append(json_to_csharp(arg))
+
+        call_args = ', '.join(arg_parts)
+
+        if return_type == 'ListNode':
+            lines.append(f'            ListNode resultNode = sol.{func}({call_args});')
+            lines.append('            int[] result = ListNodeToArray(resultNode);')
+            expected = json_to_csharp(case['output'])
+            lines.append(f'            int[] expected = {expected};')
             lines.append('            if (result.SequenceEqual(expected)) {')
-        else:
-            lines.append('            if (result == expected) {')
-        lines.append('                passed++;')
-        lines.append('            } else {')
-        lines.append('                failed++;')
-        if is_array:
+            lines.append('                passed++;')
+            lines.append('            } else {')
+            lines.append('                failed++;')
             lines.append(f'                var got = "[" + string.Join(", ", result) + "]";')
             lines.append(f'                var want = "[" + string.Join(", ", expected) + "]";')
             lines.append(f'                Console.WriteLine("FAIL case {i}: got " + got + ", want " + want);')
+            lines.append('            }')
         else:
-            lines.append(f'                Console.WriteLine("FAIL case {i}: got " + result + ", want " + expected);')
-        lines.append('            }')
+            expected = json_to_csharp(case['output'])
+            is_array = isinstance(case['output'], list)
+            lines.append(f'            var result = sol.{func}({call_args});')
+            lines.append(f'            var expected = {expected};')
+            if is_array:
+                lines.append('            if (result.SequenceEqual(expected)) {')
+            else:
+                lines.append('            if (result == expected) {')
+            lines.append('                passed++;')
+            lines.append('            } else {')
+            lines.append('                failed++;')
+            if is_array:
+                lines.append(f'                var got = "[" + string.Join(", ", result) + "]";')
+                lines.append(f'                var want = "[" + string.Join(", ", expected) + "]";')
+                lines.append(f'                Console.WriteLine("FAIL case {i}: got " + got + ", want " + want);')
+            else:
+                lines.append(f'                Console.WriteLine("FAIL case {i}: got " + result + ", want " + expected);')
+            lines.append('            }')
+
         lines.append('        }')
 
     lines.extend([

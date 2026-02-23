@@ -52,9 +52,19 @@ def json_to_go(value):
     raise ValueError(f"Unsupported type: {type(value)}")
 
 
+def has_listnode(testcases):
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    return 'ListNode' in param_types or return_type == 'ListNode'
+
+
 def generate_test(testcases):
     func_name = testcases['function']
     test_name = camel_to_pascal(func_name)
+    param_types = testcases.get('paramTypes', [])
+    return_type = testcases.get('returnType', '')
+    uses_listnode = has_listnode(testcases)
+
     lines = [
         'package solution',
         '',
@@ -63,17 +73,58 @@ def generate_test(testcases):
         '\t"testing"',
         ')',
         '',
-        f'func Test{test_name}(t *testing.T) {{',
     ]
+
+    if uses_listnode:
+        lines.extend([
+            'type ListNode struct {',
+            '\tVal  int',
+            '\tNext *ListNode',
+            '}',
+            '',
+            'func arrayToListNode(arr []int) *ListNode {',
+            '\tdummy := &ListNode{}',
+            '\tcur := dummy',
+            '\tfor _, v := range arr {',
+            '\t\tcur.Next = &ListNode{Val: v}',
+            '\t\tcur = cur.Next',
+            '\t}',
+            '\treturn dummy.Next',
+            '}',
+            '',
+            'func listNodeToArray(node *ListNode) []int {',
+            '\tarr := []int{}',
+            '\tfor node != nil {',
+            '\t\tarr = append(arr, node.Val)',
+            '\t\tnode = node.Next',
+            '\t}',
+            '\treturn arr',
+            '}',
+            '',
+        ])
+
+    lines.append(f'func Test{test_name}(t *testing.T) {{')
 
     for i, case in enumerate(testcases['cases']):
         lines.append(f'\tt.Run("case_{i}", func(t *testing.T) {{')
         args = []
         for j, arg in enumerate(case['input']):
-            lines.append(f'\t\targ{j} := {json_to_go(arg)}')
+            ptype = param_types[j] if j < len(param_types) else ''
+            if ptype == 'ListNode':
+                lines.append(f'\t\tarr{j} := {json_to_go(arg)}')
+                lines.append(f'\t\targ{j} := arrayToListNode(arr{j})')
+            else:
+                lines.append(f'\t\targ{j} := {json_to_go(arg)}')
             args.append(f'arg{j}')
-        lines.append(f'\t\texpected := {json_to_go(case["output"])}')
-        lines.append(f'\t\tresult := {func_name}({", ".join(args)})')
+
+        if return_type == 'ListNode':
+            lines.append(f'\t\texpected := {json_to_go(case["output"])}')
+            lines.append(f'\t\tresultNode := {func_name}({", ".join(args)})')
+            lines.append('\t\tresult := listNodeToArray(resultNode)')
+        else:
+            lines.append(f'\t\texpected := {json_to_go(case["output"])}')
+            lines.append(f'\t\tresult := {func_name}({", ".join(args)})')
+
         lines.append('\t\tif !reflect.DeepEqual(result, expected) {')
         lines.append('\t\t\tt.Errorf("got %v, want %v", result, expected)')
         lines.append('\t\t}')
