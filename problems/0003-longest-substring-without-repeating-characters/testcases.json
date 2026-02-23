@@ -1,0 +1,13 @@
+{
+  "function": "lengthOfLongestSubstring",
+  "params": ["s"],
+  "cases": [
+    { "input": ["abcabcbb"], "output": 3 },
+    { "input": ["bbbbb"], "output": 1 },
+    { "input": ["pwwkew"], "output": 3 },
+    { "input": [""], "output": 0 },
+    { "input": [" "], "output": 1 },
+    { "input": ["dvdf"], "output": 3 },
+    { "input": ["abcdefg"], "output": 7 }
+  ]
+}
