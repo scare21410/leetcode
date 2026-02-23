@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "vitest run --config runners/typescript/vitest.config.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
