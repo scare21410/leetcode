@@ -49,7 +49,9 @@ function discoverProblems() {
   const entries = fs.readdirSync(PROBLEMS_DIR).sort();
   const problems: Array<{ name: string; dir: string; testcases: TestCases }> = [];
 
+  const problemFilter = process.env.PROBLEM || '';
   for (const entry of entries) {
+    if (problemFilter && !entry.includes(problemFilter)) continue;
     const dir = path.join(PROBLEMS_DIR, entry);
     const solutionPath = path.join(dir, 'solution.ts');
     const testcasesPath = path.join(dir, 'testcases.json');

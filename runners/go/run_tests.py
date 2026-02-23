@@ -139,7 +139,10 @@ def main():
     generated = []
     found = False
 
+    problem_filter = os.environ.get('PROBLEM', '')
     for entry in sorted(os.listdir(PROBLEMS_DIR)):
+        if problem_filter and problem_filter not in entry:
+            continue
         problem_dir = os.path.join(PROBLEMS_DIR, entry)
         solution = os.path.join(problem_dir, 'solution.go')
         testcases_file = os.path.join(problem_dir, 'testcases.json')
