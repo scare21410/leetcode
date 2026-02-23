@@ -58,12 +58,13 @@ def generate_test(testcases, solution_filename):
     uses_listnode = has_listnode(testcases)
 
     lines = [
-        f'#include "{solution_filename}"',
         '#include <iostream>',
         '#include <cassert>',
         '#include <vector>',
         '',
         'using namespace std;',
+        '',
+        f'#include "{solution_filename}"',
         '',
     ]
 
