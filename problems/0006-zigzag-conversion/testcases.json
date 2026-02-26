@@ -1,0 +1,13 @@
+{
+  "function": "convert",
+  "params": ["s", "numRows"],
+  "cases": [
+    { "input": ["PAYPALISHIRING", 3], "output": "PAHNAPLSIIGYIR" },
+    { "input": ["PAYPALISHIRING", 4], "output": "PINALSIGYAHRPI" },
+    { "input": ["A", 1], "output": "A" },
+    { "input": ["AB", 1], "output": "AB" },
+    { "input": ["ABC", 2], "output": "ACB" },
+    { "input": ["ABCDE", 4], "output": "ABCED" },
+    { "input": ["ABCDEFGHIJKLMNOP", 5], "output": "AIBHJPCGKODFLNEM" }
+  ]
+}
