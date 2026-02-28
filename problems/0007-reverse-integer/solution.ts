@@ -1,5 +1,5 @@
-const MIN_INT_DIV_10 = -((Math.pow(2, 31) / 10) >> 0);
-const MAX_INT_DIV_10 = ((Math.pow(2, 31) - 1) / 10) >> 0;
+const MIN_INT_DIV_10 = ((1 << 31) / 10) >> 0;
+const MAX_INT_DIV_10 = (~(1 << 31) / 10) >> 0;
 
 export function reverse(x: number): number {
     let result = 0;
