@@ -1,0 +1,12 @@
+{
+  "function": "isPalindrome",
+  "params": ["x"],
+  "cases": [
+    { "input": [121], "output": true },
+    { "input": [11], "output": true },
+    { "input": [123], "output": false },
+    { "input": [1001], "output": true },
+    { "input": [-121], "output": false },
+    { "input": [10], "output": false }
+  ]
+}
