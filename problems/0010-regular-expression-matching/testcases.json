@@ -1,0 +1,15 @@
+{
+  "function": "isMatch",
+  "params": ["s", "p"],
+  "cases": [
+    { "input": ["aa", "a"], "output": false },
+    { "input": ["aa", "a*"], "output": true },
+    { "input": ["ab", ".*"], "output": true },
+    { "input": ["aab", "c*a*b"], "output": true },
+    { "input": ["mississippi", "mis*is*ip*."], "output": true },
+    { "input": ["mississippi", "mis*is*p*."], "output": false },
+    { "input": ["ab", ".*c"], "output": false },
+    { "input": ["a", "ab*"], "output": true },
+    { "input": ["aaaaaaaaaaaaaaaaaaab", "a*a*a*a*a*a*a*a*a*a*"], "output": false }
+  ]
+}
